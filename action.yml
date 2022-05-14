@@ -1,0 +1,85 @@
+name: texlive-min-action
+description: minimal texlive install and compiling with latexmk
+
+inputs:
+  texlivescheme:
+    description: 'texlive selected_scheme'
+    required: false
+    default: 'scheme-basic'
+  texfile:
+    description: 'name of main tex file'
+    required: false
+    default: 'main'
+  aptpackages:
+    description: 'additional apt packages'
+    required: false
+  tlmgrpackages:
+    description: 'additional tlmgr packages'
+    required: false
+  chktexargs:
+    description: 'arguments for chktex'
+    required: false
+    default: '-v2'
+  latexmkargs:
+    description: 'arguments for latexmk'
+    required: false
+    default: '-pdf'
+  artifactretention:
+    description: 'retention duration of pdf'
+    required: false
+    default: '90'
+    
+runs:
+  using: "composite"
+  steps:
+     - uses: actions/checkout@v3
+      
+     - name: run updates & install requirements
+       shell: bash
+       run: |
+         sudo apt update
+         sudo apt install gpg wget tar perl coreutils ${{inputs.aptpackages}}
+          
+     - name: download & setup texlive
+       shell: bash
+       run: |
+         wget https://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
+         tar -xf install-tl-unx.tar.gz
+         cd ./install-tl-*/
+         touch ./texlive.profile
+         echo "selected_scheme ${{inputs.texlivescheme}}" >> ./texlive.profile
+         echo "tlpdbopt_install_docfiles 0" >> ./texlive.profile
+         echo "tlpdbopt_install_srcfiles 0" >> ./texlive.profile
+         echo "TEXDIR /usr" >> ./texlive.profile
+         sudo perl install-tl --profile=./texlive.profile
+          
+     - name: add new path
+       shell: bash
+       run: echo "/usr/bin/x86_64-linux" >> $GITHUB_PATH
+          
+     - name: install needed texlive packages and run chktex and run latexmk
+       shell: bash
+       run: |
+         echo "### :bee: tex version :bee:" >> $GITHUB_STEP_SUMMARY
+         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+         sudo -E env "PATH=$PATH" tex --version >> $GITHUB_STEP_SUMMARY
+         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+         sudo -E env "PATH=$PATH" tlmgr install latexmk chktex biber ${{inputs.tlmgrpackages}}
+         echo "### :bee: run linter chktex :bee:" >> $GITHUB_STEP_SUMMARY
+         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+         sudo -E env "PATH=$PATH" chktex ${{inputs.chktexargs}} ${{inputs.texfile}} >> $GITHUB_STEP_SUMMARY
+         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+         echo "### :bee: run compiler pdftex :bee:" >> $GITHUB_STEP_SUMMARY
+         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+         sudo -E env "PATH=$PATH" latexmk ${{inputs.latexmkargs}} ${{inputs.texfile}} >> $GITHUB_STEP_SUMMARY
+         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+      
+     - uses: actions/upload-artifact@v3
+       with:
+         name: ${{inputs.texfile}}
+         path: ${{inputs.texfile}}.pdf
+         retention-days: ${{inputs.artifactretention}}
+
+branding:
+  icon: 'book'  
+  color: 'green'
