@@ -46,6 +46,12 @@ This example GitHub action file would install the latest texlive version with `s
   - **description:** retention duration of pdf
   - **required:** false
   - **default:** '90'
+- `writerelease`
+  - **description** write a release with pdf as asset
+  - **default** false
+- `gitsecret`
+  - **description** secrets.GITHUB_TOKEN
+  - **required** true
 
 ## License
 Copyright © 2022 [Luca Choi](https://www.github.com/lucasmchoi)
