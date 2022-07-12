@@ -28,6 +28,12 @@ inputs:
     description: 'retention duration of pdf'
     required: false
     default: '90'
+  writerelease:
+    description: 'write a release with pdf as asset'
+    default: false
+  gitsecret:
+    description: 'secrets.GITHUB_TOKEN'
+    required: true
     
 runs:
   using: "composite"
@@ -79,6 +85,33 @@ runs:
          name: ${{inputs.texfile}}
          path: ${{inputs.texfile}}.pdf
          retention-days: ${{inputs.artifactretention}}
+     
+     - name: set time for tag of release
+       if:  ${{inputs.writerelease}}
+       id: datetag
+       shell: bash
+       run: echo "::set-output name=date::$(date +'%Y%m%d-%H%M%S')"
+       
+     - name: create new release with date
+       if:  ${{inputs.writerelease}}
+       id: create_release
+       uses: actions/create-release@v1
+       env:
+         GITHUB_TOKEN: ${{inputs.gitsecret}}
+       with:
+         tag_name: ${{steps.datetag.outputs.date}}
+         release_name: ${{steps.datetag.outputs.date}}
+         
+     - name: upload artifact to release
+       if:  ${{inputs.writerelease}}
+       uses: actions/upload-release-asset@v1
+       env:
+         GITHUB_TOKEN: ${{inputs.gitsecret}}
+       with:
+         upload_url: ${{steps.create_release.outputs.upload_url}}
+         asset_path: ./${{inputs.texfile}}.pdf
+         asset_name: ${{inputs.texfile}}.pdf
+         asset_content_type: application/pdf
 
 branding:
   icon: 'book'  
